@@ -34,6 +34,10 @@ try {
         }
         throw "WinUI build failed with exit code $LASTEXITCODE"
     }
+    $resourceIndex = Join-Path $Output 'resources.pri'
+    if (!(Test-Path -LiteralPath $resourceIndex)) {
+        throw 'The WinUI publish folder is missing the application resources.pri.'
+    }
     Move-Item -LiteralPath $engine -Destination (Join-Path $Output 'engine')
 } finally {
     if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }
