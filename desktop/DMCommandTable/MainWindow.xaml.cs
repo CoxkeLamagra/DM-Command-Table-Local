@@ -32,6 +32,15 @@ public sealed partial class MainWindow : Window
                 Heading("Starting the local engine…");
                 await engine.StartAsync();
                 await ShowAccount();
+                if (Environment.GetEnvironmentVariable("DM_COMMAND_TABLE_TEST_READY_FILE") is { } readyFile)
+                {
+                    if (WindowNative.GetWindowHandle(this) == IntPtr.Zero ||
+                        !Page.Children.OfType<StackPanel>().SelectMany(row => row.Children)
+                            .OfType<Button>().Any(button => Equals(button.Content, "Register")))
+                        throw new InvalidOperationException("The native first-run UI was not created.");
+                    File.WriteAllText(readyFile, "registration-ready");
+                    DispatcherQueue.TryEnqueue(Close);
+                }
             });
         };
     }
@@ -43,7 +52,15 @@ public sealed partial class MainWindow : Window
         Root.IsHitTestVisible = false;
         Notice.IsOpen = false;
         try { await action(); }
-        catch (Exception error) { Message(error.Message, InfoBarSeverity.Error); }
+        catch (Exception error)
+        {
+            Message(error.Message, InfoBarSeverity.Error);
+            if (Environment.GetEnvironmentVariable("DM_COMMAND_TABLE_TEST_READY_FILE") is { } readyFile)
+            {
+                File.WriteAllText(readyFile, error.ToString());
+                DispatcherQueue.TryEnqueue(Close);
+            }
+        }
         finally
         {
             Root.IsHitTestVisible = true;

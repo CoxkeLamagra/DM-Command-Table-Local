@@ -1,33 +1,24 @@
 param([Parameter(Mandatory)][string] $AppDirectory)
 $ErrorActionPreference = 'Stop'
-Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
 $profile = Join-Path $env:RUNNER_TEMP ('dmct-profile-' + [Guid]::NewGuid())
 New-Item -ItemType Directory -Path $profile | Out-Null
 $originalAppData = $env:LOCALAPPDATA
 $env:LOCALAPPDATA = $profile
+$readyFile = Join-Path $profile 'ready.txt'
+$env:DM_COMMAND_TABLE_TEST_READY_FILE = $readyFile
 $app = $null
 try {
     $app = Start-Process -FilePath (Join-Path $AppDirectory 'DMCommandTable.exe') -WorkingDirectory $AppDirectory -PassThru
-    $register = [System.Windows.Automation.PropertyCondition]::new(
-        [System.Windows.Automation.AutomationElement]::NameProperty, 'Register'
-    )
-    $deadline = [DateTime]::UtcNow.AddSeconds(65)
-    do {
-        if ($app.HasExited) { throw "WinUI exited before first-run registration ($($app.ExitCode))" }
-        $app.Refresh()
-        if ($app.MainWindowHandle -ne [IntPtr]::Zero) {
-            $window = [System.Windows.Automation.AutomationElement]::FromHandle($app.MainWindowHandle)
-            if ($window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $register)) {
-                Write-Output 'WinUI started the bundled engine and displayed first-run registration.'
-                if (!$app.CloseMainWindow() -or !$app.WaitForExit(12000)) {
-                    throw 'WinUI did not close cleanly.'
-                }
-                return
-            }
+    if (!$app.WaitForExit(65000)) { throw 'The WinUI first-run launch timed out.' }
+    if (Test-Path -LiteralPath $readyFile) {
+        $result = (Get-Content -LiteralPath $readyFile -Raw).Trim()
+        if ($result -eq 'registration-ready' -and $app.ExitCode -eq 0) {
+            Write-Output 'WinUI activated its native window and created first-run registration.'
+            return
         }
-        Start-Sleep -Milliseconds 500
-    } while ([DateTime]::UtcNow -lt $deadline)
-    throw 'The WinUI first-run registration screen did not appear.'
+        Get-Content -LiteralPath $readyFile -TotalCount 6 | Write-Output
+    }
+    throw "WinUI did not complete first-run registration (exit code $($app.ExitCode))."
 } catch {
     $startupLog = Join-Path $profile 'DM Command Table/winui-startup-error.log'
     if (Test-Path -LiteralPath $startupLog) { Get-Content -LiteralPath $startupLog -TotalCount 6 | Write-Output }
@@ -41,5 +32,6 @@ try {
         & taskkill.exe /pid $app.Id /t /f | Out-Null
     }
     $env:LOCALAPPDATA = $originalAppData
+    Remove-Item Env:DM_COMMAND_TABLE_TEST_READY_FILE -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath $profile -Recurse -Force
 }
