@@ -1,5 +1,7 @@
 # Upgrading to v12
 
+> Hosted edition reference. These instructions apply to the original server deployment. For the portable app, see [Windows installation](../README.md#install-and-start) and [Windows operations](operations.md).
+
 v12.1 preserves supported v11/v12 accounts, campaigns, settings and local images, and automatically upgrades schema 1/2 to schema 3. Back up and verify local data before any deployment. No re-registration or manual conversion is required. Migration 3 separates shared monster definitions from campaign entries while preserving their IDs and revisions; uncertain edit history remains private. Keep the previous runtime/image and its matching pre-update backup for recovery. Older runtimes cannot use the migrated schema-3 database.
 
 ## Existing Debian 13 LXC

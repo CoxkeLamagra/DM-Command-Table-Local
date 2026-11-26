@@ -1,5 +1,7 @@
 # Docker deployment
 
+> Hosted edition reference. These instructions apply to the original server deployment. For the portable app, see [Windows installation](../README.md#install-and-start) and [Windows operations](operations.md).
+
 Docker is the secondary deployment target. It runs the same self-contained standalone runtime as Debian LXC, as an unprivileged user with persistent local SQLite, screenshots and backups. Runtime operation requires no Internet connection. Docker Engine and Compose must already be provisioned on the local host.
 
 ## Prepare and transfer an image

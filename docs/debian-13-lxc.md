@@ -1,5 +1,7 @@
 # Debian 13 LXC installation and recovery
 
+> Hosted edition reference. These instructions apply to the original server deployment. For the portable app, see [Windows installation](../README.md#install-and-start) and [Windows operations](operations.md).
+
 This guide starts with a bare Debian 13 LXC and ends with a running application, local administrator account, scheduled backups and optional automatic administrator-triggered updates. Debian 13 LXC is the primary deployment target.
 
 The default path builds the approved release inside the LXC. Initial OS/tool/dependency installation and browser downloads need Internet access. Once packaged, ordinary application use is local; automatic updates contact source/package hosts only when started. A separate-build-machine alternative is included below for keeping build tools off the runtime host. Bundled npm libraries are retained.

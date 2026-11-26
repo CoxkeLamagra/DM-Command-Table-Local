@@ -1,5 +1,7 @@
 # Operability and resource refactor — 2026-11-18
 
+> Historical engineering notes from the original hosted edition. See [Windows packaging and checks](development.md) for the Local release workflow.
+
 Release v12.1.5 starts from v12.1.4 (`45515c0`). It changes internal operational code and tests. No visual components, user workflows, permissions, API formats, storage schema, runtime paths or deployment settings are changed. The fixed GUI-update socket and its start/status protocol remain in place. Release preparation also updates the framework patch and guards development pattern compilation as described below. No live host is changed.
 
 ## Changes and resource evidence

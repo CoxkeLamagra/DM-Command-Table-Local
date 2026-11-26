@@ -1,5 +1,7 @@
 # v12.1.3 security remediation — 2026-10-28
 
+> Historical engineering notes from the original hosted edition. See [Windows packaging and checks](development.md) for the Local release workflow.
+
 The follow-up assessment confirmed authenticated memory exhaustion through malformed collection validation and full Bestiary materialization. Server validation now enforces structural budgets before JSON allocation and again before schema validation and uses a compiled fail-fast predicate; successful inputs retain the schema's defaults/transforms. Public error details are bounded, and campaign authorization precedes body parsing. Nested nonfatal constraint failures are covered in addition to oversized primitive arrays.
 
 Bestiary summaries omit rich text and arrive in pages of 100; full details are loaded before edits, favorites, catalogue replacement and combat snapshot creation. A shared SQLite byte budget protects full repository reads before `.all()` and JSON parsing, counting repeated shared definitions and tags. Prepared quantities and implicit snapshot creation are budgeted before expansion. Transactional copy failure rolls back. Local storage, image permissions and campaign isolation remain unchanged.
@@ -36,7 +38,7 @@ Non-growing transactions now read SQLite page usage without main-file/WAL/free-s
 
 New hashes use salted scrypt-v2 (N=32768, r=8, p=3); legacy scrypt-v1 upgrades after successful login with compare-and-swap protection against concurrent resets. Verification performs both supported work profiles. Password changes revoke sessions and administrator account mutations recheck current authority. The prior runner benchmark was about 0.135 seconds for four legacy derivations versus 0.962 seconds for four new derivations; this is historical runner evidence, not a new v12 hardware capacity measurement. New derivation memory is roughly 32 MiB per active operation plus runtime overhead.
 
-Database page ceilings, transactional growth reserves and account budgets remain documented in [operations](operations.md). They are not filesystem quotas: WAL, backups, media, retained releases and concurrent host processes still require monitoring and host limits. Existing over-budget data remains readable/removable.
+Database page ceilings, transactional growth reserves and account budgets remain documented in [operations](hosted-operations.md). They are not filesystem quotas: WAL, backups, media, retained releases and concurrent host processes still require monitoring and host limits. Existing over-budget data remains readable/removable.
 
 `pnpm audit:dependencies` audits all dependencies and verifies the tracked braces3.0.3 parser nesting mitigation for development-only GHSA-vfj7-8cjw-p6xm. Only that exact version/advisory is permitted; unrelated findings or registry failures fail verification. Raw audit may still report the upstream advisory. Production dependencies are unchanged by this refactor; there are no new libraries. Exact executed results are in the release assessment.
 

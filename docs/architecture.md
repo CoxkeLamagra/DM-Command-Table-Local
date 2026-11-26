@@ -1,6 +1,8 @@
-# v12 architecture
+# DM Command Table Local architecture
 
 The application uses Next.js 16, React 19, TypeScript, Tailwind/shadcn components and Node 24's built-in SQLite driver. One instance owns one data directory. The supported schema is version 3, built on version 1 `offline-runtime-baseline`, migration 2 `monster-token-section` and migration 3 `shared-bestiary-definitions`. Identity is checked before initialization; unsupported storage is rejected without historical conversion.
+
+On Windows, `Start.cmd` runs the bundled Node executable and starts the Next.js standalone server on loopback. The browser, SQLite database and uploaded files all stay on the PC during ordinary use. See [Windows operations](operations.md) for the data folder and ZIP update workflow.
 
 ## Source ownership
 
@@ -16,6 +18,7 @@ The application uses Next.js 16, React 19, TypeScript, Tailwind/shadcn component
 | `server/`              | Campaign access/copies/packages, Bestiary, encounters, identity, administration, media and security                                  |
 | `db/`                  | Supported SQLite schema, connections, prepared statements and transactions                                                           |
 | `scripts/`             | Build/start, packaging, shared storage resolution, backup/restore/maintenance and output cleanup                                     |
+| `deploy/windows/`      | Portable launcher, startup instructions and first-registration setup                                                                 |
 | `deploy/debian-13/`    | Fresh installer, guarded resume, systemd/Nginx and independent GUI update broker/build/deployment                                    |
 | `tests/`               | Unit/API, browser, package, deployment and installer regressions                                                                     |
 | `vendor/`              | Required upstream stylesheet/license                                                                                                 |
@@ -40,7 +43,7 @@ Loading asks whether to preserve active Players/NPCs. Yes keeps their live state
 
 `scripts/storage-config.mjs` resolves paths for the server and packaged storage/backup/maintenance commands. Relative paths resolve from the working directory; production should export absolute paths. SQLite defaults to `data/dm-command-table.sqlite`, with uploads/backups beside it.
 
-Build creates `.next/standalone` plus static/public assets. Packaging copies the complete runtime and required operational scripts/storage helper, then writes a manifest. The independent verifier checks the v11 baseline, exact inventory, bounded SHA-256 hashes and contained relative links. Packaging uses that inventory traversal rather than a separate link validator. Bundled libraries require no package manager at runtime.
+The Windows packager uses the standalone build, static assets, pinned Windows Node binary and lockfile-verified Sharp package. It shortens pnpm store paths for ZIP extraction and records dependency links. The launcher restores these paths using NTFS junctions and sets database, uploads and backups paths under `%LOCALAPPDATA%\DM Command Table`. See [Windows packaging](development.md#build-the-windows-zip).
 
 `pnpm clean` removes rebuildable outputs and TypeScript-generated files. It preserves source, data, credentials, dependencies and external symlink targets.
 
@@ -48,9 +51,9 @@ Build creates `.next/standalone` plus static/public assets. Packaging copies the
 
 The import window connects automatically to the fixed catalogue origin, without cookies/referrers. Index/record validation, download limits, source caching and cancellation bound remote work. Null ability sections and choice creature types are supported. Imports create local campaign records; local JSON works when remote requests fail.
 
-The Debian installer provisions prerequisites as root, builds as `dmct-build`, deploys verified root-owned code and gives `dmct` write access only to application data. Shared pnpm is publicly executable; tokens remain root-only. Resume accepts only pre-deployment failures without data deletion. Runtime-user readiness checks confirm direct/proxy health, protected endpoints and updater access before token output.
+Campaign imports use the same versioned plain JSON and image-package formats as the hosted edition. The API creates a new campaign and remaps embedded image references to local storage.
 
-The independent GUI updater resolves the newest stable v12 tag from the fixed project repository. A fresh unprivileged checkout installs locked dependencies and runs audit/format/lint/type/unit/build/browser/package checks without production storage/bootstrap settings. Root verifies, takes a stopped-service backup, switches releases and checks the expected health version. Failure restores matching code/data; preparation failure leaves the live application running. Manual staged packages remain an offline option. Docker lifecycle is host-managed.
+Hosted deployment scripts and the independent update broker remain in the source for the original deployment. See [Hosted operations](hosted-operations.md) for that workflow.
 
 ## Verification
 
@@ -100,7 +103,7 @@ This separation of immutable definitions, campaign bindings and authorized asset
 
 ## Bounded campaign exports
 
-`server/campaigns/export-budget.ts` runs at the shared plain-JSON/package export boundary before repository reads. It evaluates campaign access first, then scans SQLite row byte counts without transferring content to JavaScript. JSON quoting and BLOB lengths account for escaping/UTF-8; definition payloads count per exported monster instance. Nested preparation, combat snapshots/runtime and relationship/tag expansion count too. A structural reserve and V8-heap-derived headroom limit supplement the absolute 50 MiB ceiling. Package images are stat-checked and read with an incremental byte cap before base64 conversion. Final package encoding size checks and package concurrency limits remain in place. Larger campaigns use the full-server backup workflow.
+`server/campaigns/export-budget.ts` runs at the shared plain-JSON/package export boundary before repository reads. It evaluates campaign access first, then scans SQLite row byte counts without transferring content to JavaScript. JSON quoting and BLOB lengths account for escaping/UTF-8; definition payloads count per exported monster instance. Nested preparation, combat snapshots/runtime and relationship/tag expansion count too. A structural reserve and V8-heap-derived headroom limit supplement the absolute 50 MiB ceiling. Package images are stat-checked and read with an incremental byte cap before base64 conversion. Final package encoding size checks and package concurrency limits remain in place. Use a [full local backup](operations.md#local-data-and-backups) to protect larger data sets.
 
 ## Request and monster read budgets
 

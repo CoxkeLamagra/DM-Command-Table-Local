@@ -1,5 +1,7 @@
 # v12.1.5 operability validation — 2026-11-18
 
+> Historical engineering notes from the original hosted edition. See [Windows packaging and checks](development.md) for the Local release workflow.
+
 This release reduces backup write-lock duration and scratch allocation, repairs updater socket decoding/deadlines, and improves maintenance rollback, quarantine preservation and storage diagnostics. The visual interface, user/admin workflows, API/storage formats and root-helper configuration remain unchanged. See [operability evidence](operability-refactor.md) for measurements and limitations.
 
 Next.js and the matching lint package are pinned to 16.4.6, beyond the seven-day age requirement. Both development-only picomatch copies have local parser guards verified by the dependency audit. Raw registry advisory ranges remain open; unpatched/production copies, unrelated advisories and registry failures remain blocking.
@@ -123,4 +125,4 @@ The database remains schema version 2 on the supported v11 baseline. v12 introdu
 
 The managed Codex Security scan could not start because its required preflight reference was unavailable. Security work used source review and focused regressions; this is not a completed managed scan, exhaustive audit or vulnerability-free guarantee. No live-host deployment, production-data mutation or new live penetration assessment was performed.
 
-The checks do not establish a fresh bare Debian 13 installation, actual production TLS/proxy acceptance or deployment-hardware latency/capacity. The offline check uses an existing container image plus newly packaged artifacts, not a fresh source-image build against registry availability. System Chromium differs from Playwright's pinned browser. Efficiency evidence is reduced operation/allocation counts, not a hardware benchmark. See [security notes](security-efficiency-review.md) and [operations](operations.md) for trust boundaries, quotas, known advisory handling and recovery requirements.
+The checks do not establish a fresh bare Debian 13 installation, actual production TLS/proxy acceptance or deployment-hardware latency/capacity. The offline check uses an existing container image plus newly packaged artifacts, not a fresh source-image build against registry availability. System Chromium differs from Playwright's pinned browser. Efficiency evidence is reduced operation/allocation counts, not a hardware benchmark. See [security notes](security-efficiency-review.md) and [operations](hosted-operations.md) for trust boundaries, quotas, known advisory handling and recovery requirements.

@@ -1,15 +1,25 @@
-# User guide
+# DM Command Table Local user guide
+
+For startup and first registration, follow [Install and start](../README.md#install-and-start). Your browser connects to the app on this PC.
+
+## Import a campaign from the web
+
+1. On [dm.lamagra.link](https://dm.lamagra.link), open the campaign and choose **Campaign actions → Export with images**.
+2. In the Windows app, sign in to your local account and choose **Campaign actions → Import**. Select the downloaded `campaign.dmct.json`.
+3. Open the imported campaign and check the notes, prepared encounters and embedded images before going offline.
+
+Each import creates a separate campaign. Plain **Export** JSON is supported for campaign records. Use **Export with images** for screenshots and monster tokens. Accounts, sharing permissions and the full local backup history stay with the originating installation.
 
 ### Campaigns and sharing
 
 - Create, switch between, and delete multiple campaigns.
 - Store normalized campaign records in SQLite on the local application server.
-- Export and import campaign records as portable JSON, or choose **Export with images** for a self-contained campaign package. Full server backups additionally preserve accounts and undo history.
+- Export and import campaign records as portable JSON, or choose **Export with images** for a self-contained campaign package. A [full local backup](operations.md#local-data-and-backups) also preserves accounts and undo history.
 - Copy a campaign as a complete independent campaign, including its players and progress.
 - Copy a campaign as a reusable template that keeps campaign content, Bestiary records, Stories, Sessions, prepared encounters, and Story–Session links while excluding players and resetting progress.
 - Share campaigns with another registered DM Command Table user by username.
 - Assign **Editor** access for collaboration or **Viewer** access for read-only use.
-- Detect same-browser changes immediately and poll revisions for changes from other devices.
+- Detect same-browser changes immediately and poll revisions for changes from other browser windows.
 - Manage the campaign name and general campaign notes from a dedicated **Campaign** screen.
 - Use **Campaign actions** for access management, copying/templates, imports, exports, archiving and deletion. **Save** remains directly available.
 - Continue an active session or prepare the earliest planned session directly from Campaign. Undated sessions follow dated sessions.
@@ -21,20 +31,12 @@ Campaigns are private by default. Only the owner can share or delete a campaign.
 
 ### Administration sections
 
-Administration opens **Update Application** and provides four tabs. The tab bar has a dark background, a yellow selected tab with black text, and gray inactive labels. Tabs wrap into two columns on small screens and support keyboard navigation. Switching sections retains unsaved settings/account fields and update progress while Administration remains open.
-
-| Section                | Controls                                                                                                   |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Update Application     | Start an update, follow progress and read retained logs                                                    |
-| Server Settings        | Cookie/session settings, screenshot quotas, retention and database storage metrics                         |
-| Account Administration | Registration, account creation, usernames/display names, administrator roles, password resets and deletion |
-| Screenshot Library     | Browse, upload and delete local screenshots                                                                |
+Administration includes **Server Settings** for session and storage settings, **Account Administration** for local accounts, and **Screenshot Library** for images. The **Update Application** tab is for hosted installations. Follow [Update the Windows app](operations.md#update-the-windows-app) for the portable edition.
 
 ### Local user administration
 
 - The first locally registered account automatically becomes an administrator.
 - Administrators can open **Administration** to review all registered accounts.
-- With the optional Debian update service installed, administrators can update the application from **Administration**, follow executed steps and view the retained update log. See [GUI update setup](debian-13-lxc.md#updates-from-administration).
 - Change usernames and display names, reset passwords, or delete accounts.
 - Grant or remove administrator access for other users.
 - Manage server-wide cookie security, session lifetime, screenshot upload and storage limits, Combat undo retention, and audit retention from the Web UI.
@@ -144,60 +146,11 @@ Unsaved edits in Campaign, Players/NPCs, Bestiary, Stories, Sessions, prepared e
 
 Combat’s **At 0 HP** setting can skip everyone (the default), keep Player turns, or keep all turns. The preference is scoped to the account and campaign in this browser and is applied by the server to each turn/reset command. Death saves and other effects remain manually resolved.
 
-## Storage architecture
+## Storage and local accounts
 
-DM Command Table uses a local-server model with no external database service:
+The Windows app saves accounts, campaigns, sessions and settings to SQLite on this PC. Uploaded images are stored alongside the database. See [Windows storage and backups](operations.md#local-data-and-backups) for the folder location and recovery steps. Browser drafts are stored separately in your browser profile.
 
-1. Campaign and account actions use the self-hosted application. Opening Import monsters also contacts the fixed remote catalogue directly from the browser.
-2. The application stores normalized campaign data in server-local SQLite.
-3. SQLite runs in WAL mode with foreign-key checks and a five-second busy timeout.
-4. The interface detects connectivity loss and never silently overwrites unsaved editor contents.
-5. Uploaded screenshots are stored in an `uploads` directory beside the SQLite database.
-6. JSON export provides portable campaign data, while server backups preserve uploaded screenshots.
-
-The SQLite database contains local accounts, password hashes, login sessions, campaign ownership, normalized campaign records, and Viewer or Editor memberships. The default location is:
-
-```text
-./data/dm-command-table.sqlite
-```
-
-Set `DM_COMMAND_TABLE_DB_PATH` to use a different location. The directory is created automatically, and the fresh schema is initialized when the database is opened. Earlier database baselines are rejected without migrating their records.
-
-By default, screenshots are written to an `uploads` directory beside the database. Set `DM_COMMAND_TABLE_UPLOAD_PATH` to override that location.
-
-> A local monster catalogue is an import source, not a campaign database. Imported monsters are copied into the local campaign data.
-
-## Authentication
-
-DM Command Table provides its own server-local account system:
-
-- Register the first administrator with a server-configured bootstrap token.
-- Keep later registration disabled by default, or explicitly enable it while onboarding additional users.
-- Passwords are salted and hashed with Node.js `scrypt`; plaintext passwords are never stored.
-- Login sessions use random server-side tokens. Only a SHA-256 hash of each token is stored in SQLite.
-- The browser receives an HttpOnly, `SameSite=Lax` session cookie that expires after 30 days by default (configurable in Administration).
-- Signing out deletes the active server-side session.
-- New accounts start without campaign records; create a campaign or import a campaign package to begin.
-- Authentication, account administration, campaign writes and imports, password changes, and screenshot operations use SQLite-backed rate limits that survive application restarts.
-- Campaign imports are schema-validated, size-limited, sanitized, and committed atomically.
-- Screenshot storage has per-account and server-wide quotas with atomic allocation.
-- Combat undo history and campaign audit events use configurable retention limits.
-
-Accounts and sessions exist only in the configured SQLite database. No external identity provider or account database is contacted.
-
-For a plain-HTTP private network deployment, keep:
-
-```bash
-DM_COMMAND_TABLE_SECURE_COOKIES=false
-```
-
-The default value, `auto`, marks cookies secure when a trusted proxy reports HTTPS through the first `X-Forwarded-Proto` value, or the browser sends an HTTPS Origin matching Host. This also supports HTTPS terminated before an internal HTTP proxy hop. You can set `DM_COMMAND_TABLE_SECURE_COOKIES=true` to require secure cookies unconditionally. Use `false` only for a trusted plain-HTTP private network.
-
-Production startup requires `DM_COMMAND_TABLE_BOOTSTRAP_TOKEN` before the first account can be created. Generate a random value, enter it in the first-account registration form, and remove or rotate it after setup. The first account becomes administrator and automatically disables public registration. After the administrator exists, use **Administration** to enable or disable self-registration or create additional accounts directly.
-
-Uploaded images are decoded and re-encoded as WebP before storage. Each account has a 100 MiB quota by default; change it with `DM_COMMAND_TABLE_SCREENSHOT_QUOTA_MB`. Users can access their own screenshots and screenshots referenced by campaigns they can access. Administrators retain access to the complete screenshot-management library.
-
-The application sends a Content Security Policy, frame protection, MIME-sniffing protection, a restrictive permissions policy, and a referrer policy. Public deployments must use HTTPS; secure session cookies are enabled in auto mode for trusted forwarded HTTPS or a matching HTTPS browser Origin. Add HSTS at the HTTPS reverse proxy after confirming that the hostname is served exclusively over HTTPS.
+Use the first-launch token from the console to register the first administrator. Later launches use the same local account. Self-registration closes after the first account and can be reopened by an administrator.
 
 ## Visual monster stat blocks
 
@@ -213,22 +166,18 @@ The Bestiary editor has a separate **Token** section for the full monster image.
 
 ## Storage limits
 
-Administration displays database/WAL usage, free disk space and the host-configured campaign/record budgets. If a save or import reaches a budget, remove unused content or ask the host administrator to adjust the limit. Existing data remains available. New password hashes are applied automatically at account creation/reset and after a successful login with an older hash; no password reset is required for this upgrade.
+Administration displays database/WAL usage, free disk space and the host-configured campaign/record budgets. If a save or import reaches a budget, remove unused content or check available space and the configured limits. Existing data remains available. New password hashes are applied automatically at account creation/reset and after a successful login with an older hash; no password reset is required for this upgrade.
 
-## v12 release and upgrades
-
-v12 retains the current sidebar, compact layout, four Administration tabs, local catalogue imports and optional remote catalogue, token images, Combat HP/conditions/stat blocks, and numbered prepared encounters. No new account registration or campaign conversion is needed for supported v11 data. Existing LXC hosts follow the one-time [v12 updater helper installation](upgrading-to-v12.md); subsequent v12 updates use Administration → Update Application. Existing host-pinned targets remain host configuration.
-
-### Reusing imported monsters
+## Reusing imported monsters
 
 Importing identical catalogue content into another campaign reuses its stored definition rather than duplicating the complete stat block. Identical tokens already uploaded by your account are reused too. Comparison includes all rules, notes, stats and token content; matching names alone are insufficient. Missing tokens remain optional, and changed source content gets a separate definition.
 
 Editing monster content (including notes or Token) makes that campaign's entry permanently private, without changing other campaigns or its prepared encounter links. Reverting the edit or replacing it from the catalogue keeps it private. Favorites and tags remain local to each campaign and do not create a content variant. Campaign copies retain shared definitions and independently copy private entries. Portable campaign imports are private; existing duplicate screenshots are retained to protect saved content and undo history. This adds storage reuse, not a cross-campaign Bestiary or Player sharing screen.
 
-Campaign JSON and image-package exports use a safe export budget of up to 50 MiB, reduced when V8 heap headroom is limited. Before loading records, SQLite accounts for UTF-8 data, JSON escaping, repeated shared definitions, tags, prepared content and live combat snapshots/resources, plus structural overhead. Oversized content returns HTTP 413 without assembling the complete campaign. Package image reads are bounded by the remaining encoded budget before base64 conversion. The conservative preflight may reject a campaign slightly below 50 MiB; use a full server backup for larger data. Existing export formats and authorization remain unchanged.
+Campaign JSON and image-package exports use a safe export budget of up to 50 MiB, reduced when V8 heap headroom is limited. Before loading records, SQLite accounts for UTF-8 data, JSON escaping, repeated shared definitions, tags, prepared content and live combat snapshots/resources, plus structural overhead. Oversized content returns HTTP 413 without assembling the complete campaign. Package image reads are bounded by the remaining encoded budget before base64 conversion. The conservative preflight may reject a campaign slightly below 50 MiB; use a full local backup for larger data. Existing export formats and authorization remain unchanged.
 
 ## Large Bestiaries
 
 Bestiary lists and combatant pickers load lightweight catalogue summaries; opening a monster fetches its complete stat block and token. Search still includes monster notes. Favoriting and catalogue replacement preserve existing notes and full details. While Combat retrieves the selected monster details, its controls pause briefly to protect in-progress changes.
 
-Oversized full-detail operations return a clear size-budget error. Select fewer monsters or lower prepared quantities and retry. Large exports still use the full-server backup procedure described in operations. No campaign data is truncated automatically.
+Oversized full-detail operations return a clear size-budget error. Select fewer monsters or lower prepared quantities and retry. Large exports still use the [full local backup procedure](operations.md#local-data-and-backups). No campaign data is truncated automatically.

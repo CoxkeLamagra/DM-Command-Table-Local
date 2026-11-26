@@ -1,5 +1,7 @@
 # Resource-optimization refactor — 2026-11-10
 
+> Historical engineering notes from the original hosted edition. See [Windows packaging and checks](development.md) for the Local release workflow.
+
 Release v12.1.4 starts from restored v12.1.3. It preserves the local-only architecture, bundled production dependencies, existing user/admin functionality, schema 3, API formats, permission/revision checks, resource limits and installer/updater behavior. It does not reinstate the withdrawn v12.2.0 release or introduce new public-hosting settings. The development minimatch update described below keeps release verification and GUI preparation passing.
 
 ## Reduced work

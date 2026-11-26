@@ -1,5 +1,7 @@
 # Local API reference
 
+The packaged Windows launcher serves this API at `http://127.0.0.1:3210`. Browser requests use the local account session.
+
 This is the current route surface, derived from the route adapters and focused handlers under `server/api/`. It describes the supported v12 application. JSON requests use `Content-Type: application/json` and the local session cookie. Mutating requests with an Origin must match the browser-facing Host. Authenticated JSON responses are private and uncached.
 
 Records use UUID IDs. Revisioned updates submit the last received `revision`; a stale revision returns a conflict. Read the current state and reconcile the draft before resubmitting. Input shapes and limits are defined in `server/http/schemas.ts` and `domain/`; the browser client is in `features/shared/api/`.
@@ -44,7 +46,7 @@ Prepared encounters are nested under Sessions; there is no top-level `C/encounte
 
 ## Identity, administration and media
 
-`GET /api/admin/updates` requires a current administrator session and returns `{ available, target?, job }`. An unavailable local broker returns `{ available: false, job: null }`. `POST /api/admin/updates` accepts only `{ "action": "start" }`, checks origin and current administrator rights, records the request in the local audit history and limits starts to six attempts per administrator/source per hour. A reachable broker returns 202 with the current job; an unavailable broker returns 503. Duplicate starts attach to the running job. Browser-supplied targets or commands are rejected with 400. Status and logs use private, uncached responses. The broker's root-configured target (latest stable v12 by default) and latest job are defined in `domain/updates.ts`; it runs independently of application restarts. See [Debian GUI setup](debian-13-lxc.md#updates-from-administration).
+`GET /api/admin/updates` requires a current administrator session and returns `{ available, target?, job }`. An unavailable local broker returns `{ available: false, job: null }`. `POST /api/admin/updates` accepts only `{ "action": "start" }`, checks origin and current administrator rights, records the request in the local audit history and limits starts to six attempts per administrator/source per hour. A reachable broker returns 202 with the current job; an unavailable broker returns 503. Duplicate starts attach to the running job. Browser-supplied targets or commands are rejected with 400. Status and logs use private, uncached responses. The broker's root-configured target (latest stable v12 by default) and latest job are defined in `domain/updates.ts`; it runs independently of application restarts. The broker is a hosted-edition component. The Windows package uses [ZIP updates](operations.md#update-the-windows-app). See [Debian GUI setup](debian-13-lxc.md#updates-from-administration).
 
 | Method                   | Route                  | Purpose                                                                                |
 | ------------------------ | ---------------------- | -------------------------------------------------------------------------------------- |
@@ -70,11 +72,11 @@ Screenshot GET responses stream bytes and use `Cache-Control: private, no-cache`
 
 Package imports require a valid current portable campaign and exactly its referenced image assets; missing, duplicate or unused assets reject before decoding. Imports remain transactional with staging cleanup; the 50 MiB package limit remains. Package concurrency is bounded before request-body reading. This changes rejection of malformed packages, not the supported export format.
 
-## Offline imports and updates
+## Offline imports
 
-Catalogue files are parsed and searched in the browser; selected monsters use the normal local `C/monsters` mutation endpoints. There is no server-side remote catalogue API. Optional catalogue search fetches JSON from `https://dnd5e.lamagra.link` directly in the browser when the import window opens, without credentials or referrers. Selected records still use the same local monster endpoints. The automatic updater uses the fixed project Git repository and resolves the root-configured target to an exact commit; default `latest` chooses the newest stable v12 tag. Its unprivileged build helper installs frozen dependencies, verifies/builds/tests and packages before root deployment. Manual host staging remains an optional offline mode. The update API retains administrator authorization, audit entries, throttling and polling, and cannot upload or choose executable code. First installation initializes the v11 database baseline.
+Local 5etools JSON catalogue files are parsed and searched in the browser. Opening **Import monsters** also attempts to fetch the remote catalogue directly from `https://dnd5e.lamagra.link` without credentials or referrers. Selected monsters are copied to the local campaign using `C/monsters`.
 
-Prepared encounter loading accepts `preservePlayersAndNpcs` (boolean, default `false`) alongside `prepared` and `revision`. When `true`, active Players/NPCs retain their IDs, HP, conditions and runtime state; active monsters are removed and only prepared monsters (Bestiary and custom) are loaded. Prepared Players/NPCs are skipped. When `false`, the entire current roster is replaced, including Players and NPCs. Both modes reset round/turn and enforce the 10,000-combatant limit on the resulting roster before expansion. Player names are unique after trimming and case-insensitive comparison; the last prepared entry wins. Monster/NPC duplicates remain separate. An empty prepared encounter clears combat in replacement mode and retains only active Players/NPCs in preservation mode. Direct combat saves reject repeated Player names atomically; normal revision checks and Undo remain available.
+`POST /api/campaigns/import` accepts plain `dm-command-table` version 1 and image-inclusive `dmct-campaign-package` version 1 JSON. Image packages validate their assets and remap embedded references to the new local campaign.
 
 ## Visual monster stat blocks
 
@@ -108,7 +110,7 @@ Mutating adapters reject `Sec-Fetch-Site: cross-site`, including requests withou
 
 Screenshot multipart POST accepts optional `deduplicateToken=true` (exactly once). It reuses a non-staging image owned by the authenticated account only after comparing server-normalized WebP hashes. Reuse retains the existing screenshot ID and adds no stored bytes/quota usage; authorization, upload size/decoder bounds and request rate limits still apply. General uploads and campaign package staging do not enable this mode. Token filenames and remote URLs are never treated as proof of matching image content.
 
-Campaign JSON and image-package exports use a safe export budget of up to 50 MiB, reduced when V8 heap headroom is limited. Before loading records, SQLite accounts for UTF-8 data, JSON escaping, repeated shared definitions, tags, prepared content and live combat snapshots/resources, plus structural overhead. Oversized content returns HTTP 413 without assembling the complete campaign. Package image reads are bounded by the remaining encoded budget before base64 conversion. The conservative preflight may reject a campaign slightly below 50 MiB; use a full server backup for larger data. Existing export formats and authorization remain unchanged.
+Campaign JSON and image-package exports use a safe export budget of up to 50 MiB, reduced when V8 heap headroom is limited. Before loading records, SQLite accounts for UTF-8 data, JSON escaping, repeated shared definitions, tags, prepared content and live combat snapshots/resources, plus structural overhead. Oversized content returns HTTP 413 without assembling the complete campaign. Package image reads are bounded by the remaining encoded budget before base64 conversion. The conservative preflight may reject a campaign slightly below 50 MiB; use a [full local backup](operations.md#local-data-and-backups) for recovery of larger data sets. Existing export formats and authorization remain unchanged.
 
 ## Bounded validation and Bestiary reads
 

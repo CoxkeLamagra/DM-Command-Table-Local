@@ -1,7 +1,7 @@
-DM Command Table for Windows (x64)
+DM Command Table Local for Windows (x64)
 
 1. Extract the entire ZIP to a writable folder on a local NTFS drive, for example C:\Games.
-2. Open the extracted folder and double-click Start.cmd.
+2. Open the extracted DMCT folder and double-click Start.cmd.
 3. The app opens in your default browser. Keep the console window open while
    you play. Use Ctrl+C in the console to stop the app.
 4. The first time, choose Register and enter the first-time registration token
@@ -17,10 +17,9 @@ Stop the app before copying that folder for a full backup. To update, close
 the old app and launch from the new extracted folder. Back up your data first.
 
 To use a web campaign offline, choose Export with images at
-dm.lamagra.link. In the local app, choose Campaign actions > Import. Older supported plain JSON campaign exports also import,
-but the package is required to transfer screenshots and other embedded images.
+dm.lamagra.link. In the local app, choose Campaign actions > Import. Plain
+campaign JSON also imports. Use the image package to transfer embedded images.
 The import creates a new local campaign. Web accounts do not transfer.
 
 In a campaign, open Bestiary > Import monsters. The online catalogue is
-available when the browser can reach dnd5e.lamagra.link. The bundled catalogue
-and local JSON import work offline. Imported monsters are stored locally.
+available when the browser can reach dnd5e.lamagra.link. Local 5etools JSON files and previously imported monsters work offline.

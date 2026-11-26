@@ -1,6 +1,19 @@
 # Changelog
 
-The supported DM Command Table release history starts at v11.
+## Windows 12.1.5-r1
+
+- Shortened paths in the ZIP so Windows can extract it to a normal local folder.
+- Added native Windows archive extraction to the package smoke test.
+
+## Windows 12.1.5
+
+- Added a portable Windows x64 ZIP with Node.js, SQLite, image-processing dependencies and a loopback launcher.
+- Added first-run registration and per-user storage under `%LOCALAPPDATA%\DM Command Table`.
+- Kept the hosted campaign JSON and image-package formats and optional online Bestiary imports.
+
+## Inherited hosted release history
+
+The original DM Command Table release history below starts at v11.
 
 ## 12.1.5 — 2026-11-18
 
