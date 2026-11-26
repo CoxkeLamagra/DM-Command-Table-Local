@@ -32,14 +32,36 @@ if (existsSync(archive))
   throw new Error(`Move the existing archive first: ${archive}`);
 mkdirSync(dist, { recursive: true });
 const stage = mkdtempSync(path.join(dist, "windows-"));
-const bundle = path.join(stage, name);
+const bundleName = "DMCT";
+const bundle = path.join(stage, bundleName);
 const runtime = path.join(bundle, "app");
 const links = [];
 
+// pnpm's peer-dependency directory names can exceed Explorer's path limit.
+function packagedPath(relative) {
+  const parts = relative.split(path.sep);
+  if (
+    parts[0] === "node_modules" &&
+    parts[1] === ".pnpm" &&
+    parts[2]?.includes("@")
+  ) {
+    parts[2] = createHash("sha256").update(parts[2]).digest("hex").slice(0, 16);
+  }
+  const packaged = parts.join(path.sep);
+  if (path.join(bundleName, "app", packaged).length > 180)
+    throw new Error(
+      `Windows archive path exceeds its length budget: ${packaged}`,
+    );
+  return packaged;
+}
+
 function copyRuntime(folder) {
-  mkdirSync(path.join(runtime, path.relative(standalone, folder)), {
-    recursive: true,
-  });
+  mkdirSync(
+    path.join(runtime, packagedPath(path.relative(standalone, folder))),
+    {
+      recursive: true,
+    },
+  );
   for (const entry of readdirSync(folder, { withFileTypes: true })) {
     const filename = path.join(folder, entry.name);
     const relative = path.relative(standalone, filename);
@@ -47,11 +69,14 @@ function copyRuntime(folder) {
       const target = path.relative(standalone, realpathSync(filename));
       if (target.startsWith("..") || path.isAbsolute(target))
         throw new Error(`Dependency link escapes the runtime: ${relative}`);
-      links.push({ link: relative, target });
+      links.push({
+        link: packagedPath(relative),
+        target: packagedPath(target),
+      });
     } else if (entry.isDirectory()) {
       copyRuntime(filename);
     } else {
-      copyFileSync(filename, path.join(runtime, relative));
+      copyFileSync(filename, path.join(runtime, packagedPath(relative)));
     }
   }
 }
@@ -154,7 +179,7 @@ try {
     "-C",
     sharpDestination,
   ]);
-  run("zip", ["-q", "-r", path.join(stage, `${name}.zip`), name], stage);
+  run("zip", ["-q", "-r", path.join(stage, `${name}.zip`), bundleName], stage);
   copyFileSync(path.join(stage, `${name}.zip`), archive);
   writeFileSync(
     `${archive}.sha256`,
