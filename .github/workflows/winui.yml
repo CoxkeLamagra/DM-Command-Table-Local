@@ -50,6 +50,12 @@ jobs:
             Write-Output "::error::$($_.Exception.Message)"
             throw
           }
+      - name: Archive the pristine application before first launch
+        shell: pwsh
+        run: |
+          $bundle = Join-Path $PWD 'dist/DMCommandTable-WinUI'
+          $archive = Join-Path $PWD 'dist/DMCommandTable-WinUI-x64.zip'
+          [IO.Compression.ZipFile]::CreateFromDirectory($bundle, $archive)
       - name: Verify campaign transfer and Bestiary adapter
         shell: pwsh
         run: |
@@ -59,9 +65,7 @@ jobs:
       - name: Verify first-run WinUI launch
         shell: pwsh
         run: |
-          $bundle = Join-Path $PWD 'dist/DMCommandTable-WinUI'
           $archive = Join-Path $PWD 'dist/DMCommandTable-WinUI-x64.zip'
-          [IO.Compression.ZipFile]::CreateFromDirectory($bundle, $archive)
           $testFolder = Join-Path $env:RUNNER_TEMP 'DMCT native smoke'
           Expand-Archive -LiteralPath $archive -DestinationPath $testFolder
           $powerShell = Join-Path $env:WINDIR 'System32/WindowsPowerShell/v1.0/powershell.exe'
