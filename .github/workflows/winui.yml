@@ -39,21 +39,42 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: desktop-engine
-      - name: Build and test the packaged application
+      - name: Compile and package WinUI
         shell: pwsh
         run: |
           $zip = Get-ChildItem -Filter '*-windows-x64.zip' | Select-Object -First 1
           if (!$zip) { throw 'Missing engine ZIP' }
-          desktop/package.ps1 -EngineZip $zip.FullName
+          try {
+            desktop/package.ps1 -EngineZip $zip.FullName
+          } catch {
+            Write-Output "::error::$($_.Exception.Message)"
+            throw
+          }
+      - name: Verify campaign transfer and Bestiary adapter
+        shell: pwsh
+        run: |
           $engine = Join-Path $PWD 'dist/DMCommandTable-WinUI/engine'
           & (Join-Path $engine 'node.exe') tests/windows-package-smoke.mjs $engine --desktop
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify first-run WinUI launch
+        shell: pwsh
+        run: |
           $bundle = Join-Path $PWD 'dist/DMCommandTable-WinUI'
           $archive = Join-Path $PWD 'dist/DMCommandTable-WinUI-x64.zip'
           [IO.Compression.ZipFile]::CreateFromDirectory($bundle, $archive)
           $testFolder = Join-Path $env:RUNNER_TEMP 'DMCT native smoke'
           Expand-Archive -LiteralPath $archive -DestinationPath $testFolder
-          desktop/Test-Launch.ps1 -AppDirectory $testFolder
+          $powerShell = Join-Path $env:WINDIR 'System32/WindowsPowerShell/v1.0/powershell.exe'
+          $test = Join-Path $PWD 'desktop/Test-Launch.ps1'
+          $output = & $powerShell -NoProfile -ExecutionPolicy Bypass -File $test -AppDirectory $testFolder 2>&1
+          $result = $LASTEXITCODE
+          $output | Write-Output
+          if ($result -ne 0) {
+            $output | Select-Object -First 8 | ForEach-Object {
+              Write-Output "::error::$("$_".Replace('%', '%25').Replace("`n", '%0A').Replace("`r", '%0D'))"
+            }
+            exit $result
+          }
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: dm-command-table-winui-x64
