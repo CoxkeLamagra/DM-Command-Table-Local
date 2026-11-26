@@ -177,24 +177,121 @@ public sealed partial class MainWindow
         return Task.CompletedTask;
     }
 
+    private static Border Card(UIElement content) => new()
+    {
+        Background = Surface, BorderBrush = Line, BorderThickness = new Thickness(1),
+        CornerRadius = new CornerRadius(12), Padding = new Thickness(16), Child = content
+    };
+
+    private static TextBlock CombatLabel(string text, double size = 14, bool accent = false) => new()
+    {
+        Text = text, FontSize = size, Foreground = accent ? Amber : Muted,
+        TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center
+    };
+
+    private static Grid InitiativeRow()
+    {
+        var row = new Grid { ColumnSpacing = 12 };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(76) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(64) });
+        return row;
+    }
+
+    private static void Place(Grid grid, UIElement control, int column)
+    {
+        Grid.SetColumn(control, column);
+        grid.Children.Add(control);
+    }
+
     private async Task ShowCombat()
     {
         var path = CampaignRoute + "/combat";
         var combat = Obj(await engine.JsonAsync("GET", path), "combat");
         Heading("Combat");
-        var name = Field("Encounter name", Text(combat, "name"));
-        Page.Children.Add(new TextBlock { Text = $"Round {Text(combat, "round")}" });
+        Page.Children.Insert(0, CombatLabel(Text(campaign, "name"), 13, accent: true));
+
+        var workspace = new Grid
+        {
+            ColumnSpacing = 16, RowSpacing = 16, HorizontalAlignment = HorizontalAlignment.Left
+        };
+        var mainColumn = new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) };
+        var sideColumn = new ColumnDefinition { Width = new GridLength(0) };
+        workspace.ColumnDefinitions.Add(mainColumn);
+        workspace.ColumnDefinitions.Add(sideColumn);
+        workspace.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        workspace.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        var layout = new Grid();
+        layout.Children.Add(workspace);
+        layout.SizeChanged += (_, args) => workspace.Width = Math.Min(args.NewSize.Width, 1200);
+        Page.Children.Add(layout);
+
+        var tracker = new StackPanel { Spacing = 14 };
+        var sidebar = new StackPanel { Spacing = 12 };
+        var trackerCard = Card(tracker);
+        var addCard = Card(sidebar);
+        workspace.Children.Add(trackerCard);
+        workspace.Children.Add(addCard);
+        Grid.SetRow(addCard, 1);
+        addCard.VerticalAlignment = VerticalAlignment.Top;
+        void ArrangeCombat(double width)
+        {
+            var wide = width >= 720;
+            sideColumn.Width = new GridLength(wide ? 280 : 0);
+            workspace.ColumnSpacing = wide ? 16 : 0;
+            workspace.RowSpacing = wide ? 0 : 16;
+            Grid.SetColumn(addCard, wide ? 1 : 0);
+            Grid.SetRow(addCard, wide ? 0 : 1);
+        }
+        workspace.SizeChanged += (_, args) => ArrangeCombat(args.NewSize.Width);
+
+        var status = new Grid();
+        status.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        status.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Place(status, new TextBlock { Text = "Initiative", Foreground = Ink, FontSize = 20 }, 0);
+        Place(status, CombatLabel($"Round {Text(combat, "round")}", accent: true), 1);
+        tracker.Children.Add(status);
+        var name = Field("Encounter name", Text(combat, "name"), parent: tracker);
+
         var combatants = Items(combat, "combatants");
-        var edits = new List<(JsonNode Item, TextBox Initiative, TextBox Hp)>();
+        if (combatants.Count > 0)
+        {
+            var columns = InitiativeRow();
+            Place(columns, CombatLabel("Combatant"), 0);
+            Place(columns, CombatLabel("Initiative"), 1);
+            Place(columns, CombatLabel("HP"), 2);
+            tracker.Children.Add(columns);
+        }
+        else
+        {
+            tracker.Children.Add(CombatLabel("Add a combatant to begin tracking initiative."));
+        }
+
+        var edits = new List<(TextBox Initiative, TextBox Hp)>();
+        var turn = combat["turn"]?.GetValue<int>() ?? -1;
         foreach (var item in combatants)
         {
-            var row = Row();
-            row.Children.Add(new TextBlock { Text = Text(item, "name"), VerticalAlignment = VerticalAlignment.Center, MinWidth = 140 });
-            var initiative = new TextBox { Header = "Initiative", Text = Text(item, "initiative"), MinWidth = 105 };
-            var hp = new TextBox { Header = "HP", Text = Text(item, "hitPoints"), MinWidth = 105 };
-            row.Children.Add(initiative);
-            row.Children.Add(hp);
-            edits.Add((item!, initiative, hp));
+            var active = edits.Count == turn;
+            var row = InitiativeRow();
+            var identity = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
+            identity.Children.Add(new TextBlock
+            {
+                Text = Text(item, "name"), Foreground = Ink, TextWrapping = TextWrapping.Wrap
+            });
+            if (active) identity.Children.Add(CombatLabel("Current turn", 12, accent: true));
+            Place(row, identity, 0);
+            var initiative = new TextBox { Text = Text(item, "initiative"), MinWidth = 0, CornerRadius = new CornerRadius(7) };
+            var hp = new TextBox { Text = Text(item, "hitPoints"), MinWidth = 0, CornerRadius = new CornerRadius(7) };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(initiative, $"Initiative for {Text(item, "name")}");
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(hp, $"HP for {Text(item, "name")}");
+            Place(row, initiative, 1);
+            Place(row, hp, 2);
+            tracker.Children.Add(new Border
+            {
+                BorderBrush = active ? Amber : Line, BorderThickness = new Thickness(0, 1, 0, 0),
+                Padding = new Thickness(0, 10, 0, 4), Child = row
+            });
+            edits.Add((initiative, hp));
         }
         JsonObject Draft()
         {
@@ -208,20 +305,21 @@ public sealed partial class MainWindow
             }
             return draft;
         }
-        var actions = Row();
+        var actions = Row(tracker);
         Button(actions, "Save", async () => { await engine.JsonAsync("PUT", path, Draft()); await ShowCombat(); });
         Button(actions, "Next turn", async () =>
         {
             await engine.JsonAsync("POST", path + "/command", new() { ["combat"] = Draft(), ["command"] = "next-turn" });
             await ShowCombat();
-        });
+        }, primary: true);
         Button(actions, "Undo", async () =>
         {
             await engine.JsonAsync("POST", path + "/undo", new() { ["revision"] = combat["revision"]?.DeepClone() });
             await ShowCombat();
         });
-        var add = Field("New combatant name");
-        Button(Row(), "Add combatant", async () =>
+        sidebar.Children.Add(new TextBlock { Text = "Add combatant", Foreground = Ink, FontSize = 20 });
+        var add = Field("Combatant name", parent: sidebar);
+        Button(Row(sidebar), "Add combatant", async () =>
         {
             var draft = Draft();
             Items(draft, "combatants").Add(new JsonObject

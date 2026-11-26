@@ -12,8 +12,8 @@ try {
     if (!$app.WaitForExit(65000)) { throw 'The WinUI first-run launch timed out.' }
     if (Test-Path -LiteralPath $readyFile) {
         $result = (Get-Content -LiteralPath $readyFile -Raw).Trim()
-        if ($result -eq 'registration-ready' -and $app.ExitCode -eq 0) {
-            Write-Output 'WinUI activated its native window and created first-run registration.'
+        if ($result -eq 'registration-and-combat-ready' -and $app.ExitCode -eq 0) {
+            Write-Output 'WinUI activated its native window and displayed registration and laid out the themed Combat screen.'
             return
         }
         Get-Content -LiteralPath $readyFile -TotalCount 6 | Write-Output

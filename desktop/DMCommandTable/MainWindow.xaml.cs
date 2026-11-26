@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Text.Json.Nodes;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
@@ -38,7 +39,20 @@ public sealed partial class MainWindow : Window
                         !Page.Children.OfType<StackPanel>().SelectMany(row => row.Children)
                             .OfType<Button>().Any(button => Equals(button.Content, "Register")))
                         throw new InvalidOperationException("The native first-run UI was not created.");
-                    File.WriteAllText(readyFile, "registration-ready");
+                    await engine.JsonAsync("POST", "/api/auth", new()
+                    {
+                        ["action"] = "register", ["username"] = "layout-smoke",
+                        ["password"] = "disposable-layout-test", ["bootstrapToken"] = engine.BootstrapToken
+                    });
+                    var result = await engine.JsonAsync("POST", "/api/campaigns", new() { ["name"] = "Layout smoke" });
+                    campaign = Obj(result, "campaign");
+                    await ShowCombat();
+                    Page.UpdateLayout();
+                    var layout = Page.Children.OfType<Grid>().Single();
+                    var cards = ((Grid)layout.Children[0]).Children.OfType<Border>().Count();
+                    if (Root.RequestedTheme != ElementTheme.Dark || cards != 2 || layout.ActualWidth <= 0)
+                        throw new InvalidOperationException("The themed Combat cards were not laid out.");
+                    File.WriteAllText(readyFile, "registration-and-combat-ready");
                     DispatcherQueue.TryEnqueue(Close);
                 }
             });
@@ -88,32 +102,51 @@ public sealed partial class MainWindow : Window
     private static JsonArray Items(JsonNode? node, string key) => node?[key]?.AsArray() ?? [];
     private static JsonArray CopyItems(JsonNode? node, string key) => (JsonArray)Items(node, key).DeepClone();
 
+    private static readonly SolidColorBrush Ink = new(Microsoft.UI.ColorHelper.FromArgb(255, 245, 240, 229));
+    private static readonly SolidColorBrush Muted = new(Microsoft.UI.ColorHelper.FromArgb(255, 168, 162, 158));
+    private static readonly SolidColorBrush Amber = new(Microsoft.UI.ColorHelper.FromArgb(255, 252, 211, 77));
+    private static readonly SolidColorBrush Surface = new(Microsoft.UI.ColorHelper.FromArgb(255, 21, 24, 32));
+    private static readonly SolidColorBrush Line = new(Microsoft.UI.ColorHelper.FromArgb(255, 45, 48, 59));
+    private static readonly SolidColorBrush DarkInk = new(Microsoft.UI.ColorHelper.FromArgb(255, 16, 19, 26));
+
     private void Heading(string text)
     {
         Page.Children.Clear();
-        Page.Children.Add(new TextBlock { Text = text, FontSize = 28, TextWrapping = TextWrapping.Wrap });
+        Page.Children.Add(new TextBlock
+        {
+            Text = text, FontSize = 34, Foreground = Ink, FontFamily = new FontFamily("Georgia"),
+            TextWrapping = TextWrapping.Wrap
+        });
     }
 
-    private StackPanel Row()
+    private StackPanel Row(Panel? parent = null)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        Page.Children.Add(row);
+        (parent ?? Page).Children.Add(row);
         return row;
     }
 
-    private void Button(StackPanel panel, string label, Func<Task> action)
+    private void Button(StackPanel panel, string label, Func<Task> action, bool primary = false)
     {
-        var button = new Button { Content = label };
+        var button = new Button { Content = label, CornerRadius = new CornerRadius(7), Padding = new Thickness(13, 8, 13, 8) };
+        if (primary)
+        {
+            button.Background = Amber;
+            button.Foreground = DarkInk;
+            button.Resources["ButtonBackgroundPointerOver"] = Amber;
+            button.Resources["ButtonForegroundPointerOver"] = DarkInk;
+            button.Resources["ButtonForegroundPressed"] = DarkInk;
+        }
         button.Click += async (_, _) => await Run(action);
         panel.Children.Add(button);
     }
 
-    private TextBox Field(string label, string value = "", bool multiline = false)
+    private TextBox Field(string label, string value = "", bool multiline = false, Panel? parent = null)
     {
         var input = new TextBox { Header = label, Text = value, AcceptsReturn = multiline,
-            TextWrapping = multiline ? TextWrapping.Wrap : TextWrapping.NoWrap };
+            CornerRadius = new CornerRadius(7), TextWrapping = multiline ? TextWrapping.Wrap : TextWrapping.NoWrap };
         if (multiline) input.MinHeight = 110;
-        Page.Children.Add(input);
+        (parent ?? Page).Children.Add(input);
         return input;
     }
 
