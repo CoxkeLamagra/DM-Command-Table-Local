@@ -7,7 +7,7 @@ $originalAppData = $env:LOCALAPPDATA
 $env:LOCALAPPDATA = $profile
 $app = $null
 try {
-    $app = Start-Process -FilePath (Join-Path $AppDirectory 'DMCommandTable.exe') -PassThru
+    $app = Start-Process -FilePath (Join-Path $AppDirectory 'DMCommandTable.exe') -WorkingDirectory $AppDirectory -PassThru
     $register = [System.Windows.Automation.PropertyCondition]::new(
         [System.Windows.Automation.AutomationElement]::NameProperty, 'Register'
     )
@@ -28,6 +28,14 @@ try {
         Start-Sleep -Milliseconds 500
     } while ([DateTime]::UtcNow -lt $deadline)
     throw 'The WinUI first-run registration screen did not appear.'
+} catch {
+    $startupLog = Join-Path $profile 'DM Command Table/winui-startup-error.log'
+    if (Test-Path -LiteralPath $startupLog) { Get-Content -LiteralPath $startupLog -TotalCount 6 | Write-Output }
+    Get-ChildItem -LiteralPath $AppDirectory -Filter '*.pri' | ForEach-Object { Write-Output "Packaged resource index: $($_.Name)" }
+    Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = [DateTime]::Now.AddMinutes(-2); Id = @(1000, 1026) } -ErrorAction SilentlyContinue |
+        Where-Object { $_.Message -match 'DMCommandTable' } |
+        Select-Object -First 1 -ExpandProperty Message | Write-Output
+    throw
 } finally {
     if ($app -and !$app.HasExited) {
         & taskkill.exe /pid $app.Id /t /f | Out-Null
