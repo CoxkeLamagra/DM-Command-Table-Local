@@ -4,6 +4,16 @@ DM Command Table is a self-hosted workspace for preparing and running tabletop R
 
 Accounts, campaigns, Players/NPCs, Bestiary records, Stories/Sessions, prepared encounters, combat, search, screenshots and backups live on your server. Bundled libraries support offline operation. Opening Import monsters connects automatically to `dnd5e.lamagra.link`; local JSON imports remain available offline. Debian GUI updates contact GitHub and package registries only when you start an update.
 
+## Windows 10 and 11 (x64)
+
+Extract the Windows ZIP to a writable folder on a local NTFS drive, then double-click **Start.cmd**. It starts the app at `http://127.0.0.1:3210` and opens your default browser. Use the token shown in the console to **Register** on the first run. Keep that window open while you play and press **Ctrl+C** there when finished.
+
+The package includes Node.js, SQLite and the app dependencies. It runs offline with a modern browser. Campaigns and uploads live in `%LOCALAPPDATA%\DM Command Table`, outside the installation folder. To update, close the app, back up that data folder, and start from the newly extracted release.
+
+On [dm.lamagra.link](https://dm.lamagra.link), choose **Export with images** to take a campaign and its embedded images offline. In the Windows app, choose **Campaign actions → Import**. The plain **Export** JSON is also supported. Web accounts do not transfer. **Bestiary → Import monsters** can reach the online catalogue when connected, and still offers the bundled catalogue and JSON import offline.
+
+The **Windows local application** GitHub Actions workflow builds the ZIP and smoke-tests it on Windows. To build the same package on Linux or WSL with `curl`, `tar`, `unzip`, and `zip` installed, run `pnpm install --frozen-lockfile`, `pnpm build`, then `node scripts/package-windows.mjs`. The ZIP and its checksum are written to `dist/`.
+
 ## Fresh Debian 13 LXC
 
 Use a dedicated amd64/arm64 container with systemd, networking, at least 2 CPU cores, 4 GiB RAM and 12 GiB disk plus data/backup space. Run as root:

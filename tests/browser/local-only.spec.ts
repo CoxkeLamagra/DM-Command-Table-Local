@@ -19,6 +19,27 @@ test("local catalogue search, preview, import and replacement work with external
   await page.getByLabel("Username", { exact: true }).fill("browser-offline");
   await page.getByLabel("Password", { exact: true }).fill("browser-test-pass");
   await page.locator('form button[type="submit"]').click();
+  await expect(
+    page.getByRole("heading", { name: "Campaign details" }),
+  ).toBeVisible();
+  const localRevisionCheck = page.waitForResponse(
+    (response) =>
+      response.request().method() === "GET" &&
+      /\/api\/campaigns\/[a-f0-9-]+$/.test(new URL(response.url()).pathname),
+    { timeout: 5000 },
+  );
+  // An internet disconnect does not disconnect the browser from localhost.
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "onLine", {
+      configurable: true,
+      value: false,
+    });
+    window.dispatchEvent(new Event("offline"));
+  });
+  expect((await localRevisionCheck).ok()).toBe(true);
+  await expect(
+    page.getByText("Server unavailable", { exact: true }),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "Bestiary", exact: true }).click();
   await page
     .getByRole("button", { name: "Import monsters", exact: true })

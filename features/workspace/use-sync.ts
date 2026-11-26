@@ -6,6 +6,10 @@ import { getCampaign, CLIENT_INSTANCE_ID } from "../shared/api";
 
 type MutationDetail = { campaignId: string | null; source: "local" | "remote" };
 
+function isLoopback() {
+  return ["127.0.0.1", "localhost", "[::1]"].includes(window.location.hostname);
+}
+
 export function useSync(
   campaignId: string | undefined,
   revision: number | undefined,
@@ -32,7 +36,7 @@ export function useSync(
   const checkRevision = useCallback(async () => {
     if (
       !campaignId ||
-      !navigator.onLine ||
+      (!navigator.onLine && !isLoopback()) ||
       document.visibilityState !== "visible" ||
       checking.current
     )
@@ -70,7 +74,10 @@ export function useSync(
       setOnline(true);
       void checkRevision();
     };
-    const offlineListener = () => setOnline(false);
+    const offlineListener = () => {
+      if (isLoopback()) void checkRevision();
+      else setOnline(false);
+    };
     const connectivity = (event: Event) =>
       setOnline(
         Boolean((event as CustomEvent<{ online: boolean }>).detail.online),
