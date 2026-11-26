@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 
 namespace DMCommandTable;
 
@@ -9,7 +10,7 @@ public partial class App : Application
     public App()
     {
         UnhandledException += (_, args) => ReportStartupError(args.Exception);
-        try { InitializeComponent(); }
+        try { Resources.MergedDictionaries.Add(new XamlControlsResources()); }
         catch (Exception error)
         {
             ReportStartupError(error);
