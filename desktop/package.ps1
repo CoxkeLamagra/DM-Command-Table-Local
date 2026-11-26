@@ -13,9 +13,18 @@ try {
     $engine = Join-Path $stage 'DMCT'
     if (!(Test-Path -LiteralPath (Join-Path $engine 'node.exe'))) { throw 'Missing bundled Node engine' }
     $project = Join-Path $PSScriptRoot 'DMCommandTable\DMCommandTable.csproj'
+    $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+    $msbuild = & $vswhere -latest -products '*' -requires Microsoft.Component.MSBuild -find 'MSBuild\Current\Bin\amd64\MSBuild.exe' | Select-Object -First 1
+    if (!$msbuild) { throw 'Install Visual Studio Build Tools with Windows application development tools.' }
     $buildLog = Join-Path $stage 'winui-build.log'
-    dotnet publish $project -c Release -r win-x64 --self-contained true -o $Output 2>&1 |
-        Tee-Object -FilePath $buildLog
+    Push-Location $PSScriptRoot
+    try {
+        & $msbuild $project -restore -t:Publish -p:Configuration=Release -p:Platform=x64 `
+            -p:RuntimeIdentifier=win-x64 -p:SelfContained=true "-p:PublishDir=$Output" -verbosity:minimal 2>&1 |
+            Tee-Object -FilePath $buildLog
+    } finally {
+        Pop-Location
+    }
     if ($LASTEXITCODE -ne 0) {
         if ($env:GITHUB_ACTIONS -eq 'true') {
             Get-Content -LiteralPath $buildLog | Where-Object { $_ -match '(error |failed)' } |
