@@ -198,7 +198,7 @@ public sealed partial class MainWindow
         return row;
     }
 
-    private static void Place(Grid grid, UIElement control, int column)
+    private static void Place(Grid grid, FrameworkElement control, int column)
     {
         Grid.SetColumn(control, column);
         grid.Children.Add(control);
