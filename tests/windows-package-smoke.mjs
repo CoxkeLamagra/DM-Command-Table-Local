@@ -9,12 +9,24 @@ const bundle = path.resolve(process.argv[2]);
 const profile = mkdtempSync(path.join(tmpdir(), "dmct-profile-"));
 const address = "http://127.0.0.1:3210";
 const windows = process.platform === "win32";
+const desktop = process.argv.includes("--desktop");
 const server = spawn(
   windows ? path.join(bundle, "node.exe") : process.execPath,
-  [path.join(bundle, "launch.mjs"), "--no-browser"],
+  [
+    path.join(bundle, "launch.mjs"),
+    "--no-browser",
+    ...(desktop ? ["--desktop"] : []),
+  ],
   {
-    env: { ...process.env, LOCALAPPDATA: profile },
-    stdio: ["ignore", "pipe", "inherit"],
+    env: {
+      ...process.env,
+      LOCALAPPDATA: profile,
+      DM_COMMAND_TABLE_DESKTOP_PORT: "3210",
+      ...(desktop && {
+        NODE_OPTIONS: `--import=${new URL("./desktop-catalogue-fixture.mjs", import.meta.url).href}`,
+      }),
+    },
+    stdio: [desktop ? "pipe" : "ignore", "pipe", "inherit"],
   },
 );
 const stopped = once(server, "exit");
@@ -89,6 +101,54 @@ try {
     })
   ).json();
 
+  if (desktop) {
+    const { monsters } = await (
+      await request("/api/desktop-catalogue", {
+        json: {
+          campaignId: campaign.id,
+          query: "goblin",
+          local: JSON.stringify({
+            monster: [
+              {
+                name: "Desktop goblin",
+                source: "LOCAL",
+                ac: [15],
+                hp: { average: 7 },
+              },
+            ],
+          }),
+        },
+      })
+    ).json();
+    assert.equal(monsters.length, 1);
+    assert.equal(monsters[0].monster.armorClass, 15);
+    const remote = await (
+      await request("/api/desktop-catalogue", {
+        json: { campaignId: campaign.id, query: "remote goblin" },
+      })
+    ).json();
+    assert.equal(remote.monsters[0].monster.name, "Remote goblin");
+    assert.equal(
+      remote.monsters[0].tokenUrl,
+      "https://dnd5e.lamagra.link/img/bestiary/tokens/MM/Remote%20goblin.webp",
+    );
+    await (
+      await request(`/api/campaigns/${campaign.id}/monsters`, {
+        expected: 201,
+        json: remote.monsters[0].monster,
+      })
+    ).json();
+    await (
+      await request(`/api/campaigns/${campaign.id}/monsters`, {
+        expected: 201,
+        json: monsters[0].monster,
+      })
+    ).json();
+  }
+  if (!desktop)
+    await (
+      await request("/api/desktop-catalogue", { expected: 404, json: {} })
+    ).json();
   const portable = await (
     await request(`/api/campaigns/${campaign.id}/export`)
   ).json();
@@ -117,7 +177,8 @@ try {
   );
 } finally {
   if (server.exitCode === null && server.pid) {
-    if (windows)
+    if (desktop) server.stdin.end();
+    else if (windows)
       execFileSync("taskkill.exe", ["/pid", String(server.pid), "/t", "/f"]);
     else server.kill();
   }

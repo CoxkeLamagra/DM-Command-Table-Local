@@ -27,6 +27,7 @@ The app stores its database and images under `%LOCALAPPDATA%\DM Command Table`, 
 - [Windows operations](docs/operations.md) for storage, backups, updates, and troubleshooting.
 - [Architecture](docs/architecture.md) and [local API reference](docs/api.md) for implementation details.
 - [Development and packaging](docs/development.md) for building from source and running checks.
+- [WinUI development build](desktop/README.md) for the native Windows client and its current scope.
 - [Changelog](CHANGELOG.md) for Windows packages and inherited application changes.
 
 This is a hobby project. No open-source license has been assigned. Retained third-party UI and stylesheet notices are in `vendor/`.

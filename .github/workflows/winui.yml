@@ -1,0 +1,61 @@
+name: Native Windows app
+on:
+  pull_request:
+  push:
+    branches: [main, "build/winui"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+      - run: npm install --global pnpm@11.25.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: node scripts/package-windows.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: desktop-engine
+          path: dist/*-windows-x64.zip
+          if-no-files-found: error
+
+  winui:
+    runs-on: windows-latest
+    needs: engine
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d6
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: desktop-engine
+      - name: Build and test the packaged application
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem -Filter '*-windows-x64.zip' | Select-Object -First 1
+          if (!$zip) { throw 'Missing engine ZIP' }
+          desktop/package.ps1 -EngineZip $zip.FullName
+          $engine = Join-Path $PWD 'dist/DMCommandTable-WinUI/engine'
+          & (Join-Path $engine 'node.exe') tests/windows-package-smoke.mjs $engine --desktop
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $bundle = Join-Path $PWD 'dist/DMCommandTable-WinUI'
+          $archive = Join-Path $PWD 'dist/DMCommandTable-WinUI-x64.zip'
+          [IO.Compression.ZipFile]::CreateFromDirectory($bundle, $archive)
+          $testFolder = Join-Path $env:RUNNER_TEMP 'DMCT native smoke'
+          Expand-Archive -LiteralPath $archive -DestinationPath $testFolder
+          desktop/Test-Launch.ps1 -AppDirectory $testFolder
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dm-command-table-winui-x64
+          path: dist/DMCommandTable-WinUI-x64.zip
+          if-no-files-found: error

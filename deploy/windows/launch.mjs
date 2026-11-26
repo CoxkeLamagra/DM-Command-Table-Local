@@ -37,7 +37,10 @@ for (const { link, target } of JSON.parse(
 }
 
 const hostname = "127.0.0.1";
-const port = 3210;
+const desktop = process.argv.includes("--desktop");
+const port = desktop ? Number(process.env.DM_COMMAND_TABLE_DESKTOP_PORT) : 3210;
+if (!Number.isInteger(port) || port < 1024 || port > 65535)
+  throw new Error("Invalid desktop engine port.");
 const address = `http://${hostname}:${port}`;
 const probe = createServer();
 await new Promise((resolve, reject) => {
@@ -62,6 +65,7 @@ const server = spawn(process.execPath, [path.join(runtime, "server.js")], {
     NEXT_TELEMETRY_DISABLED: "1",
     HOSTNAME: hostname,
     PORT: String(port),
+    DM_COMMAND_TABLE_DESKTOP: desktop ? "1" : "0",
     DM_COMMAND_TABLE_TRUST_PROXY: "false",
     DM_COMMAND_TABLE_SECURE_COOKIES: "auto",
     DM_COMMAND_TABLE_DB_PATH: path.join(data, "dm-command-table.sqlite"),
@@ -89,6 +93,11 @@ async function isReady() {
   } catch {
     return false;
   }
+}
+
+if (desktop) {
+  process.stdin.once("end", () => server.kill());
+  process.stdin.resume();
 }
 
 let ready = false;
@@ -120,5 +129,6 @@ try {
   }
   process.exitCode = await exited;
 } finally {
+  if (desktop) process.stdin.pause();
   if (server.exitCode === null) server.kill();
 }
