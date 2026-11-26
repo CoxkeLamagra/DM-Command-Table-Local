@@ -11,20 +11,6 @@ namespace DMCommandTable;
 public sealed partial class MainWindow : Window
 {
     private readonly Engine engine = new();
-    private readonly Grid Root = new();
-    private readonly InfoBar Notice = new() { IsClosable = true };
-    private readonly NavigationView Navigation = new()
-    {
-        IsBackButtonVisible = NavigationViewBackButtonVisible.Collapsed,
-        IsSettingsVisible = false
-    };
-    private readonly StackPanel Page = new()
-    {
-        Margin = new Thickness(24),
-        Spacing = 12,
-        MaxWidth = 1100,
-        HorizontalAlignment = HorizontalAlignment.Stretch
-    };
     private JsonArray campaigns = [];
     private JsonObject? campaign;
     private string section = "Campaign";
@@ -35,15 +21,7 @@ public sealed partial class MainWindow : Window
 
     public MainWindow()
     {
-        Title = "DM Command Table Local";
-        Root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        Root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        Root.Children.Add(Notice);
-        Grid.SetRow(Navigation, 1);
-        Navigation.Content = new ScrollViewer { Content = Page };
-        Navigation.SelectionChanged += Navigate;
-        Root.Children.Add(Navigation);
-        Content = Root;
+        InitializeComponent();
         Closed += (_, _) => engine.Dispose();
         Root.Loaded += async (_, _) =>
         {

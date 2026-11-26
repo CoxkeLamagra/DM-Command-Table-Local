@@ -1,32 +1,26 @@
-using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
 
 namespace DMCommandTable;
 
-public sealed class App : Application
+public partial class App : Application
 {
     private MainWindow? window;
 
-    [STAThread]
-    public static void Main()
+    public App()
     {
-        WinRT.ComWrappersSupport.InitializeComWrappers();
-        Application.Start(startup =>
+        UnhandledException += (_, args) => ReportStartupError(args.Exception);
+        try { InitializeComponent(); }
+        catch (Exception error)
         {
-            var context = new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread());
-            SynchronizationContext.SetSynchronizationContext(context);
-            _ = new App();
-        });
+            ReportStartupError(error);
+            throw;
+        }
     }
-
-    public App() => UnhandledException += (_, args) => ReportStartupError(args.Exception);
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         try
         {
-            Resources.MergedDictionaries.Add(new XamlControlsResources());
             window = new MainWindow();
             window.Activate();
         }
